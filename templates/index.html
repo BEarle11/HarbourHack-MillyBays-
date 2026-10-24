@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milly Bays — Turn Clutter Into CASH!</title>
+<style>
+  :root {
+    --blue: #0038b8;
+    --yellow: #ffd800;
+    --red: #e02b20;
+    --ink: #101418;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Arial Black", Arial, sans-serif;
+    background: var(--blue);
+    color: #fff;
+  }
+  header {
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    color: var(--yellow);
+    text-transform: uppercase;
+    text-shadow: 4px 4px 0 var(--ink);
+    letter-spacing: 0.02em;
+  }
+  .tagline {
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 1rem; }
+  .card {
+    background: #fff;
+    color: var(--ink);
+    border-radius: 12px;
+    border: 4px solid var(--ink);
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.35);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .card h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    color: var(--blue);
+  }
+  .stage { display: none; }
+  .stage.visible { display: block; }
+  .burst {
+    display: inline-block;
+    background: var(--red);
+    color: #fff;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    transform: rotate(-3deg);
+    margin-bottom: 0.5rem;
+  }
+  #drop {
+    border: 3px dashed var(--blue);
+    border-radius: 10px;
+    text-align: center;
+    padding: 1.5rem 1rem;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+  }
+  #drop img { max-width: 100%; max-height: 240px; border-radius: 8px; margin-top: 0.75rem; }
+  #file { display: none; }
+  button.sell {
+    display: block;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 1rem;
+    font-family: "Arial Black", Arial, sans-serif;
+    font-size: 1.4rem;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--yellow);
+    border: 4px solid var(--ink);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  button.sell:disabled { opacity: 0.5; cursor: wait; }
+  .price-tag {
+    font-size: 2.6rem;
+    color: var(--red);
+  }
+  .muted { font-family: Arial, sans-serif; font-size: 0.9rem; color: #444; }
+  pre, .listing, .transcript {
+    font-family: Arial, sans-serif;
+    background: #f2f5ff;
+    border: 2px solid var(--blue);
+    border-radius: 8px;
+    padding: 0.75rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  video { width: 100%; border-radius: 8px; margin-top: 0.5rem; }
+  .spinner { font-family: Arial, sans-serif; color: var(--blue); }
+  .error { color: var(--red); font-family: Arial, sans-serif; }
+  .label { font-family: Arial, sans-serif; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; color: var(--blue); }
+  .market-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0.9rem;
+    font-family: Arial, sans-serif;
+  }
+  .market-item {
+    border: 3px solid var(--ink);
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .market-item img, .market-item video {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+    border-bottom: 3px solid var(--ink);
+    background: #000;
+  }
+  .market-item video { height: 320px; }
+  #stage-studio video { max-height: 480px; width: auto; max-width: 100%; display: block; margin: 0.5rem auto 0; }
+  .market-item .info { padding: 0.6rem 0.7rem 0.8rem; }
+  .market-item .name { font-weight: bold; font-size: 0.95rem; text-transform: capitalize; }
+  .market-item .cond { font-size: 0.75rem; color: #555; }
+  .market-item .price { color: var(--red); font-family: "Arial Black", Arial, sans-serif; font-size: 1.4rem; margin-top: 0.2rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Milly Bays</h1>
+  <div class="tagline">Snap it. Price it. SELL IT!</div>
+</header>
+<main>
+  <div class="card">
+    <span class="burst">BUT WAIT — THERE'S MORE!</span>
+    <div id="drop">
+      <div id="drop-text">Click to upload a photo of that thing in your house</div>
+      <img id="preview" alt="" style="display:none">
+    </div>
+    <input id="file" type="file" accept="image/*">
+    <button class="sell" id="sell" disabled>SELL IT!</button>
+  </div>
+
+  <div class="card stage" id="stage-classify">
+    <h2>Step 1 — The Classifier</h2>
+    <div class="result"><span class="spinner">Identifying your treasure...</span></div>
+  </div>
+
+  <div class="card stage" id="stage-price">
+    <h2>Step 2 — The Pricer</h2>
+    <div class="result"><span class="spinner">Checking what it's worth...</span></div>
+  </div>
+
+  <div class="card stage" id="stage-write">
+    <h2>Step 3 — The Writer</h2>
+    <div class="result"><span class="spinner">Writing your ad...</span></div>
+  </div>
+
+  <div class="card stage" id="stage-studio">
+    <h2>Step 4 — The Studio</h2>
+    <div class="result"><span class="spinner">Rolling cameras...</span></div>
+  </div>
+
+  <div class="card">
+    <span class="burst">TODAY'S HOTTEST CLUTTER!</span>
+    <h2>The Marketplace</h2>
+    <div class="market-grid" id="market"><span class="spinner">Stocking the shelves...</span></div>
+  </div>
+</main>
+
+<script>
+const STUDIO_ENABLED = {{ studio_enabled|tojson }};
+const $ = id => document.getElementById(id);
+let pickedFile = null;
+
+$('drop').onclick = () => $('file').click();
+$('file').onchange = e => {
+  pickedFile = e.target.files[0];
+  if (!pickedFile) return;
+  const img = $('preview');
+  img.src = URL.createObjectURL(pickedFile);
+  img.style.display = 'block';
+  $('drop-text').textContent = pickedFile.name;
+  $('sell').disabled = false;
+};
+
+function show(id, html) {
+  $(id).classList.add('visible');
+  $(id).querySelector('.result').innerHTML = html;
+}
+function fail(id, msg) {
+  show(id, `<div class="error">Error: ${msg}</div>`);
+}
+async function post(url, body, isForm) {
+  const r = await fetch(url, {
+    method: 'POST',
+    body: isForm ? body : JSON.stringify(body),
+    headers: isForm ? {} : {'Content-Type': 'application/json'},
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+$('sell').onclick = async () => {
+  $('sell').disabled = true;
+  for (const s of ['classify','price','write','studio']) {
+    $( 'stage-' + s).classList.add('visible');
+    $('stage-' + s).querySelector('.result').innerHTML =
+      '<span class="spinner">Working...</span>';
+  }
+  try {
+    const fd = new FormData();
+    fd.append('image', pickedFile);
+    const cls = await post('/api/classify', fd, true);
+    show('stage-classify', `
+      <div class="label">Item</div><div>${cls.name}</div>
+      <div class="label" style="margin-top:.5rem">Description</div>
+      <div class="muted">${cls.description}</div>
+      <div class="label" style="margin-top:.5rem">Condition</div>
+      <div>${cls.condition}</div>`);
+
+    const pr = await post('/api/price', cls);
+    show('stage-price', `
+      <div class="price-tag">$${pr.suggested_price}</div>
+      <div class="muted">range: $${pr.price_low} – $${pr.price_high}</div>
+      <div class="muted" style="margin-top:.5rem">${pr.reasoning}</div>`);
+
+    const wr = await post('/api/write', {...cls, ...pr});
+    show('stage-write', `
+      <div class="label">Marketplace listing</div>
+      <div class="listing"><b>${wr.listing_title}</b> — $${pr.suggested_price}\n\n${wr.listing_description}</div>
+      <div class="label" style="margin-top:.75rem">Billy Mays ad transcript</div>
+      <div class="transcript">${wr.transcript}</div>`);
+
+    if (STUDIO_ENABLED) {
+      const st = await post('/api/studio', {name: cls.name, transcript: wr.transcript});
+      if (st.video_url) {
+        show('stage-studio', `<video controls autoplay src="${st.video_url}"></video>`);
+      } else {
+        demoVideo();
+      }
+    } else {
+      demoVideo();
+    }
+  } catch (e) {
+    for (const s of ['classify','price','write','studio']) {
+      const el = $('stage-' + s).querySelector('.result');
+      if (el.querySelector('.spinner')) el.innerHTML = `<div class="error">Error: ${e.message}</div>`;
+    }
+  }
+  $('sell').disabled = false;
+};
+
+function demoVideo() {
+  show('stage-studio', `
+    <div class="muted">Live generation needs an ELEVENLABS_API_KEY — here's a Milly Bays original:</div>
+    <video controls src="/demo-video"></video>`);
+}
+
+fetch('/api/marketplace')
+  .then(r => r.json())
+  .then(items => {
+    $('market').innerHTML = items.map(i => `
+      <div class="market-item">
+        ${i.video
+          ? `<video src="/examples/video/${i.video}" autoplay muted loop playsinline></video>`
+          : `<img src="/examples/images/${i.image}" alt="${i.name}">`}
+        <div class="info">
+          <div class="name">${i.name}</div>
+          <div class="cond">condition: ${i.condition}</div>
+          <div class="price">$${i.price}</div>
+        </div>
+      </div>`).join('');
+  })
+  .catch(() => { $('market').innerHTML = '<div class="error">Could not load the marketplace.</div>'; });
+</script>
+</body>
+</html>

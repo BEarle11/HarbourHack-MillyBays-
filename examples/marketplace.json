@@ -1,0 +1,50 @@
+[
+  {
+    "video": "generic_pillow.mp4",
+    "name": "generic pillow",
+    "condition": "good",
+    "price": 10
+  },
+  {
+    "image": "chair.jpeg",
+    "name": "Gray rocking chair",
+    "condition": "fair",
+    "price": 50
+  },
+  {
+    "image": "cooler.jpeg",
+    "name": "YETI tote bag",
+    "condition": "good",
+    "price": 32
+  },
+  {
+    "image": "cooler_2.jpeg",
+    "name": "YETI soft cooler tote",
+    "condition": "good",
+    "price": 50
+  },
+  {
+    "image": "hanger.jpeg",
+    "name": "Padded clothes hanger",
+    "condition": "new",
+    "price": 6
+  },
+  {
+    "image": "kid_toy.jpeg",
+    "name": "Desktop calculator",
+    "condition": "good",
+    "price": 5
+  },
+  {
+    "image": "medical_boot.jpeg",
+    "name": "medical walking boot",
+    "condition": "good",
+    "price": 18
+  },
+  {
+    "image": "medical_boot2.jpeg",
+    "name": "medical walking boot",
+    "condition": "good",
+    "price": 10
+  }
+]
