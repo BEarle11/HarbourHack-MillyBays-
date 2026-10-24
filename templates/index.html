@@ -320,7 +320,7 @@ $('avatar-btn').onclick = async () => {
     $('avatar-btn').textContent = 'End Call';
     $('avatar-btn').disabled = false;
   } catch (e) {
-    $('avatar-error').textContent = 'Error: ' + e.message;
+    $('avatar-error').textContent = 'Error: ' + e.message + (e.details && e.details.cause ? ' (' + e.details.cause + ')' : '');
     avatarIdle();
   }
 };
