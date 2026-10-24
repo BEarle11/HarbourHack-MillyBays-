@@ -172,6 +172,14 @@
   </div>
 
   <div class="card">
+    <span class="burst">ASK ME ANYTHING!</span>
+    <h2>Talk to Milly Bays Live</h2>
+    <video id="avatar-video" autoplay playsinline style="background:#000"></video>
+    <button class="sell" id="avatar-btn">Ask a Question!</button>
+    <div class="error" id="avatar-error"></div>
+  </div>
+
+  <div class="card">
     <span class="burst">TODAY'S HOTTEST CLUTTER!</span>
     <h2>The Marketplace</h2>
     <div class="market-grid" id="market"><span class="spinner">Stocking the shelves...</span></div>
@@ -284,6 +292,38 @@ fetch('/api/marketplace')
       </div>`).join('');
   })
   .catch(() => { $('market').innerHTML = '<div class="error">Could not load the marketplace.</div>'; });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@anam-ai/js-sdk@4.29.1/dist/umd/anam.js"></script>
+<script>
+// Live avatar: the server builds an Anam session linked to the ElevenLabs agent.
+let avatarClient = null;
+function avatarIdle() {
+  avatarClient = null;
+  $('avatar-btn').textContent = 'Ask a Question!';
+  $('avatar-btn').disabled = false;
+}
+$('avatar-btn').onclick = async () => {
+  if (avatarClient) {
+    await avatarClient.stopStreaming();
+    avatarIdle();
+    return;
+  }
+  $('avatar-btn').disabled = true;
+  $('avatar-btn').textContent = 'Connecting...';
+  $('avatar-error').textContent = '';
+  try {
+    const {sessionToken} = await post('/api/anam-session', {});
+    avatarClient = anam.createClient(sessionToken);
+    // Free tier ends sessions after 3 minutes; reset the button when that happens.
+    avatarClient.addListener(anam.AnamEvent.CONNECTION_CLOSED, avatarIdle);
+    await avatarClient.streamToVideoElement('avatar-video');
+    $('avatar-btn').textContent = 'End Call';
+    $('avatar-btn').disabled = false;
+  } catch (e) {
+    $('avatar-error').textContent = 'Error: ' + e.message;
+    avatarIdle();
+  }
+};
 </script>
 </body>
 </html>

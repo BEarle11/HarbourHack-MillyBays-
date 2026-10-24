@@ -24,6 +24,10 @@ ELEVENLABS_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 ELEVENLABS_URL = "https://api.elevenlabs.io/v1/flows/video"
 VIDEO_MODEL = os.environ.get("MILLY_VIDEO_MODEL", "bytedance-seedance-v2.5")
 
+ANAM_KEY = os.environ.get("ANAM_API_KEY", "")
+ANAM_AVATAR_ID = os.environ.get("ANAM_AVATAR_ID", "")
+ELEVENLABS_AGENT_ID = os.environ.get("ELEVENLABS_AGENT_ID", "")
+
 EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "examples")
 DEMO_VIDEO = os.path.join(EXAMPLES_DIR, "video/generic_pillow.mp4")
 MARKETPLACE_JSON = os.path.join(EXAMPLES_DIR, "marketplace.json")
@@ -357,6 +361,48 @@ def studio():
             return jsonify({"error": body.get("error_message", "video failed")}), 502
         time.sleep(5)
     return jsonify({"error": "video generation timed out"}), 504
+
+
+@app.post("/api/anam-session")
+def anam_session():
+    # Live Q&A avatar: Anam renders the face, the ElevenLabs agent does the talking.
+    missing = [
+        name
+        for name, value in [
+            ("ANAM_API_KEY", ANAM_KEY),
+            ("ANAM_AVATAR_ID", ANAM_AVATAR_ID),
+            ("ELEVENLABS_API_KEY", ELEVENLABS_KEY),
+            ("ELEVENLABS_AGENT_ID", ELEVENLABS_AGENT_ID),
+        ]
+        if not value
+    ]
+    if missing:
+        return jsonify({"error": "missing env vars: " + ", ".join(missing)}), 500
+    signed = requests.get(
+        "https://api.elevenlabs.io/v1/convai/conversation/get-signed-url",
+        params={"agent_id": ELEVENLABS_AGENT_ID},
+        headers={"xi-api-key": ELEVENLABS_KEY},
+        timeout=30,
+    )
+    if not signed.ok:
+        return jsonify({"error": f"ElevenLabs {signed.status_code}: {signed.text}"}), 502
+    session = requests.post(
+        "https://api.anam.ai/v1/auth/session-token",
+        headers={"Authorization": f"Bearer {ANAM_KEY}"},
+        json={
+            "personaConfig": {"avatarId": ANAM_AVATAR_ID},
+            "environment": {
+                "elevenLabsAgentSettings": {
+                    "signedUrl": signed.json()["signed_url"],
+                    "agentId": ELEVENLABS_AGENT_ID,
+                }
+            },
+        },
+        timeout=30,
+    )
+    if not session.ok:
+        return jsonify({"error": f"Anam {session.status_code}: {session.text}"}), 502
+    return jsonify({"sessionToken": session.json()["sessionToken"]})
 
 
 @app.post("/api/banner")
