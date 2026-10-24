@@ -54,3 +54,5 @@ The script prints one EXIF tag per line. A missing file exits with status 1. A r
 
 `POST /api/classify` (image upload) → `POST /api/price` → `POST /api/write` →
 `POST /api/studio`. See DESIGN.md.
+
+`POST /api/banner` accepts a video file plus `name` and `price`, and returns the video with a bottom banner.

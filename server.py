@@ -4,11 +4,13 @@ import io
 import json
 import os
 import re
+import tempfile
 import time
 
 import requests
 from flask import Flask, jsonify, render_template, request, send_file, send_from_directory
-from PIL import Image, ImageOps
+from moviepy import ColorClip, CompositeVideoClip, TextClip, VideoFileClip
+from PIL import Image, ImageFont, ImageOps
 
 app = Flask(__name__)
 
@@ -65,6 +67,137 @@ def image_to_b64(file_storage, max_px=1024):
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=80)
     return base64.b64encode(buf.getvalue()).decode()
+
+
+class BannerError(Exception):
+    pass
+
+
+BANNER_BLUE = (0, 56, 184)  # page blue #0038b8
+
+
+def banner_font():
+    candidates = [
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return "Arial"
+
+
+def format_price(raw):
+    text = raw.strip()
+    if text.startswith("$"):
+        return text
+    try:
+        value = float(text.replace(",", ""))
+    except ValueError:
+        return text
+    if value.is_integer():
+        return f"${int(value)}"
+    return f"${value:.2f}"
+
+
+def banner_text_clip(text, font, font_size):
+    # Pillow 11 dropped the metric MoviePy uses to size TextClip, so the
+    # default clip is shorter than the font and the baseline falls off the bottom.
+    face = ImageFont.truetype(font, font_size)
+    ascent, descent = face.getmetrics()
+    pad_y = max(2, font_size // 16)
+    return TextClip(
+        font=font,
+        text=text,
+        font_size=font_size,
+        color="white",
+        size=(None, ascent + descent + pad_y),
+        vertical_align="top",
+    )
+
+
+def fit_banner_text(name, price_text, font, width, banner_h):
+    pad_x = max(12, int(width * 0.03))
+    gap = max(16, int(width * 0.04))
+    font_size = max(12, int(banner_h * 0.46))
+    while True:
+        name_clip = banner_text_clip(name, font, font_size)
+        price_clip = banner_text_clip(price_text, font, font_size)
+        fits = (
+            name_clip.w + price_clip.w + pad_x * 2 + gap <= width
+            and name_clip.h <= banner_h
+            and price_clip.h <= banner_h
+        )
+        if fits or font_size <= 12:
+            return name_clip, price_clip, pad_x
+        name_clip.close()
+        price_clip.close()
+        font_size -= 2
+
+
+def compose_banner(video, name, price_text):
+    width, height = video.size
+    banner_h = max(36, int(round(height * 0.14)))
+    if banner_h > height // 3:
+        banner_h = max(1, height // 3)
+    duration = video.duration
+    name_clip, price_clip, pad_x = fit_banner_text(
+        name, price_text, banner_font(), width, banner_h
+    )
+    name_clip = name_clip.with_duration(duration).with_position((pad_x, "center"))
+    price_clip = price_clip.with_duration(duration).with_position(
+        (width - pad_x - price_clip.w, "center")
+    )
+    bar = CompositeVideoClip(
+        [
+            ColorClip(size=(width, banner_h), color=BANNER_BLUE, duration=duration),
+            name_clip,
+            price_clip,
+        ],
+        size=(width, banner_h),
+    ).with_position((0, height - banner_h))
+    return CompositeVideoClip([video, bar], size=(width, height))
+
+
+def render_price_banner(video_bytes, filename, name, price_text):
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"}:
+        ext = ".mp4"
+    with tempfile.TemporaryDirectory() as tmp:
+        src = os.path.join(tmp, "in" + ext)
+        dst = os.path.join(tmp, "out.mp4")
+        with open(src, "wb") as handle:
+            handle.write(video_bytes)
+        video = None
+        try:
+            try:
+                video = VideoFileClip(src)
+            except Exception as exc:
+                raise BannerError("could not read video file") from exc
+            if not video.duration or video.w < 2 or video.h < 2:
+                raise BannerError("could not read video file")
+            final = compose_banner(video, name, price_text)
+            write_kwargs = {
+                "codec": "libx264",
+                "fps": video.fps or 24,
+                "preset": "veryfast",
+                "logger": None,
+                "pixel_format": "yuv420p",
+            }
+            if video.audio is not None:
+                write_kwargs["audio_codec"] = "aac"
+                write_kwargs["temp_audiofile"] = os.path.join(tmp, "audio.m4a")
+            else:
+                write_kwargs["audio"] = False
+            final.write_videofile(dst, **write_kwargs)
+        finally:
+            if video is not None:
+                video.close()
+        with open(dst, "rb") as handle:
+            return handle.read()
 
 
 @app.get("/")
@@ -224,6 +357,29 @@ def studio():
             return jsonify({"error": body.get("error_message", "video failed")}), 502
         time.sleep(5)
     return jsonify({"error": "video generation timed out"}), 504
+
+
+@app.post("/api/banner")
+def banner():
+    upload = request.files.get("video")
+    if upload is None or not upload.filename:
+        return jsonify({"error": "no video uploaded"}), 400
+    name = (request.form.get("name") or "").strip()
+    price_raw = (request.form.get("price") or "").strip()
+    if not name or not price_raw:
+        return jsonify({"error": "name and price are required"}), 400
+    data = upload.read()
+    if not data:
+        return jsonify({"error": "no video uploaded"}), 400
+    try:
+        out = render_price_banner(data, upload.filename, name, format_price(price_raw))
+    except BannerError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return send_file(
+        io.BytesIO(out),
+        mimetype="video/mp4",
+        download_name="banner.mp4",
+    )
 
 
 if __name__ == "__main__":
