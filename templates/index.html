@@ -127,7 +127,21 @@
     border-bottom: 3px solid var(--ink);
     background: #000;
   }
-  .market-item video { height: 320px; }
+  .market-item video { height: 320px; cursor: pointer; }
+  .market-item .media { position: relative; }
+  .market-item .sound-hint {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: var(--red);
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 0.7rem;
+    font-weight: bold;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    pointer-events: none;
+  }
   #stage-studio video { max-height: 480px; width: auto; max-width: 100%; display: block; margin: 0.5rem auto 0; }
   .market-item .info { padding: 0.6rem 0.7rem 0.8rem; }
   .market-item .name { font-weight: bold; font-size: 0.95rem; text-transform: capitalize; }
@@ -282,7 +296,7 @@ fetch('/api/marketplace')
     $('market').innerHTML = items.map(i => `
       <div class="market-item">
         ${i.video
-          ? `<video src="/examples/video/${i.video}" autoplay muted loop playsinline></video>`
+          ? `<div class="media"><video src="/examples/video/${i.video}" autoplay muted loop playsinline onclick="this.muted=!this.muted; this.nextElementSibling.textContent=this.muted?'TAP FOR SOUND':'SOUND ON'"></video><span class="sound-hint">TAP FOR SOUND</span></div>`
           : `<img src="/examples/images/${i.image}" alt="${i.name}">`}
         <div class="info">
           <div class="name">${i.name}</div>
